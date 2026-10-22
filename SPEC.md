@@ -7,6 +7,10 @@ and the owner merges.
 The same CLI runs from a terminal, from an agent session through a skill, or
 from a CI job. Where issues and code live is up to plugins.
 
+Local is the primary use: a terminal or an agent session, with issues as files
+and a local git host. No network, account or CI is needed. GitHub issues and
+CI triggers are plugins added on top.
+
 ## Principles
 
 - **The approved plan is the source of truth.** A change that has to deviate
@@ -62,20 +66,24 @@ Backlog → Planning → Blocked → Building → Review → Done
    issue and sets Planning again. If the plan is ready, the owner sets
    Building. That is the approval.
 3. **Build.** One model builds on a branch and opens a draft change.
-4. **Review.** A different model reviews it. If it finds problems, the builder
-   gets one repair round: it fixes the listed points on the same branch, and
-   the reviewer checks again.
+4. **Review.** A separate run with a fresh context reviews it. A change passes
+   only when the review passes and its checks are green; a red check counts as
+   a failed review. On a failure the builder gets one repair round: it fixes
+   the listed points on the same branch, and the review runs again.
    - If the fix would break the plan, the issue goes back to Planning. The new
      plan stops at Blocked like any other, so it needs a new approval.
-   - If review still fails, the change stays a draft and the issue goes to
+   - If it still fails, the change stays a draft and the issue goes to
      Blocked.
-   - If review passes, the change is marked ready and the issue goes to Review.
+   - If it passes, the change is marked ready and the issue goes to Review.
 5. **Merge.** The owner merges. A change merges itself only if it matches an
    allow list the owner sets and its checks pass. The code host's merge sets Done.
 
 Rules that hold at every step:
 
 - An issue has one run at a time.
+- Every run has a time limit and runs with no terminal input, so an agent that
+  waits for input fails instead of hanging. The core sets a default limit; a
+  repo can change it.
 - Every run can be stopped. A stop is recorded with its reason and sets
   Blocked.
 - Only the owner's status changes start work. The one exception is a review
@@ -90,6 +98,8 @@ Rules that hold at every step:
   of its own; they are files, not code.
 - **Runs get an allowlisted environment.** No ambient key or token reaches an
   agent unless the run declares it.
+- **Tests drive whole runs.** They run each stage end to end against the
+  in-memory store and a stub agent, rather than testing internals.
 
 ## Plugins
 
@@ -97,8 +107,7 @@ The CLI is built on [oclif](https://oclif.io). Its plugin system is
 Blueprint's plugin system: a plugin can listen to hooks and add commands.
 
 **Hooks.** The core fires a hook before and after each run and each stage,
-with the run record. A cost plugin adds up usage after each run. A timeout
-plugin stops a run. Every run carries a stop signal, so a plugin can end it
+with the run record. A cost plugin adds up usage after each run. Every run carries a stop signal, so a plugin can end it
 at any time.
 
 **Issue provider.** It must:
@@ -111,7 +120,8 @@ It may also say who last set the status. Without that, whoever runs the CLI
 counts as the owner.
 
 **Code host.** It must make a branch, report whether checks passed, and
-merge. If it has pull requests, it also opens a draft and marks it ready.
+merge. The local git host runs the repo's check command to answer whether
+checks passed. If it has pull requests, it also opens a draft and marks it ready.
 
 **Trigger** (optional). It calls the CLI when the owner sets Planning or
 Building, for example a CI job that runs on a GitHub label.
@@ -149,7 +159,8 @@ owner adds a label. It needs no project board, no webhook and no organization.
 
 ## Dashboards
 
-A dashboard is a consumer. It reads issues, statuses and run records through
+A dashboard is a plugin and a consumer. Nothing in the core exists only to
+serve a dashboard. It reads issues, statuses and run records through
 the CLI, so it works with any provider. It can set the same statuses, close
 issues and stop runs, and nothing else. It keeps no state it can't rebuild.
 
