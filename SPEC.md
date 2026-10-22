@@ -7,6 +7,10 @@ and the owner merges.
 The same CLI runs from a terminal, from an agent session through a skill, or
 from a CI job. Where issues and code live is up to plugins.
 
+Local is the primary use: a terminal or an agent session, with issues as files
+and a local git host. No network, account or CI is needed. GitHub issues and
+CI triggers are plugins added on top.
+
 ## Principles
 
 - **The approved plan is the source of truth.** A change that has to deviate
@@ -116,7 +120,8 @@ It may also say who last set the status. Without that, whoever runs the CLI
 counts as the owner.
 
 **Code host.** It must make a branch, report whether checks passed, and
-merge. If it has pull requests, it also opens a draft and marks it ready.
+merge. The local git host runs the repo's check command to answer whether
+checks passed. If it has pull requests, it also opens a draft and marks it ready.
 
 **Trigger** (optional). It calls the CLI when the owner sets Planning or
 Building, for example a CI job that runs on a GitHub label.
@@ -154,7 +159,8 @@ owner adds a label. It needs no project board, no webhook and no organization.
 
 ## Dashboards
 
-A dashboard is a consumer. It reads issues, statuses and run records through
+A dashboard is a plugin and a consumer. Nothing in the core exists only to
+serve a dashboard. It reads issues, statuses and run records through
 the CLI, so it works with any provider. It can set the same statuses, close
 issues and stop runs, and nothing else. It keeps no state it can't rebuild.
 
